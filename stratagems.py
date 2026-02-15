@@ -3,7 +3,7 @@ STRATAGEMS = {
     # Common
     # ==========================================
     ("up", "down", "right", "left", "up"): {
-        "name": "Reinforce",
+        "name": "Reinforcement",
         "image": "images/stratagems/reinforce.png"
     },
     ("down", "down", "up", "right"): {

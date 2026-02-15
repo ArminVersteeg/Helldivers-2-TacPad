@@ -1,6 +1,6 @@
 from kivy.config import Config
-Config.set('graphics', 'width', '800')
-Config.set('graphics', 'height', '480')
+Config.set('graphics', 'width', '750')
+Config.set('graphics', 'height', '470')
 Config.set('graphics', 'resizable', '0')
 
 import kivy
@@ -12,6 +12,7 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.image import Image as uixImage
 from kivy.uix.widget import Widget
+from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
 from kivy.graphics import RoundedRectangle, Color, Line
 from kivy.animation import Animation
@@ -76,10 +77,10 @@ class TacPad(FloatLayout):
         # Stratagems
         self.stratagems = STRATAGEMS
 
-        # Background
+        # Background (boot background first)
         from kivy.uix.image import Image
         self.bg = Image(
-            source="images/background/background.png",
+            source="images/background/boot_background.png",
             allow_stretch=True,
             keep_ratio=True,
             size_hint=(1, 1)
@@ -99,31 +100,30 @@ class TacPad(FloatLayout):
         self.start_label.bind(size=self.start_label.setter('text_size'))
         self.add_widget(self.start_label)
 
-        # Display for user input sequence (top-left)
-        self.sequence_label = Label(
-            text="",
-            font_size="40sp",
-            halign="left",
-            valign="top",
+        # Arrow Image Sequence Display (top-left)
+        self.sequence_display = BoxLayout(
+            orientation="horizontal",
+            spacing=8,
+            size_hint=(None, None),
+            height=60,
             pos_hint={"x": 0.02, "top": 0.98},
-            color=(0, 1, 1, 1),  # Cyan
-            opacity=0,
-            font_name="HelldiversFont"
+            opacity=0
         )
-        self.sequence_label.bind(size=self.sequence_label.setter("text_size"))
-        self.add_widget(self.sequence_label)
+        self.add_widget(self.sequence_display)
 
         # Startup screen
         self.startup_layout = FloatLayout(size_hint=(1, 1))
         self.add_widget(self.startup_layout)
+
         self.startup_label = Label(
             text="PERSONAL HELLPAD\nSYSTEM",
-            font_size="80sp",
+            font_size="70sp",
             font_name="HelldiversFont",
             halign="center",
             pos_hint={"center_x": 0.5, "center_y": 0.5}
         )
         self.startup_layout.add_widget(self.startup_label)
+
         self.loading_bar = LoadingBar(
             size_hint=(0.6, 0.05),
             pos_hint={"center_x": 0.5, "center_y": 0.205}
@@ -135,12 +135,39 @@ class TacPad(FloatLayout):
         self.loading_event = Clock.schedule_interval(self.update_loading, 8.5 / 100)
         self.bind(on_touch_down=self.activate_arrows)
 
+    # ===============================
+    # Sequence Display Helpers
+    # ===============================
+    def add_arrow_to_display(self, direction):
+        arrow_img = uixImage(
+            source=f"images/arrows/{direction}.png",
+            size_hint=(None, None),
+            size=(45, 45),
+            allow_stretch=True,
+            keep_ratio=True
+        )
+        self.sequence_display.add_widget(arrow_img)
+
+        if self.sequence_display.opacity == 0:
+            self.fade_widget(self.sequence_display, 1, duration=0.15)
+
+    def clear_sequence_display(self):
+        self.user_input_sequence = []
+        self.sequence_display.clear_widgets()
+        self.fade_widget(self.sequence_display, 0, duration=0.15)
+
+    # ===============================
     # Loading logic
+    # ===============================
     def update_loading(self, dt):
         self.loading_progress += 1
         self.loading_bar.set_progress(self.loading_progress)
         if self.loading_progress >= 100:
             self.remove_widget(self.startup_layout)
+
+            # Switch to main background after boot
+            self.bg.source = "images/background/background.png"
+
             self.booting = False
             self.fade_widget(self.start_label, 1, duration=0.2)
             return False
@@ -171,9 +198,11 @@ class TacPad(FloatLayout):
     def show_arrows(self):
         if self.start_label.parent:
             self.remove_widget(self.start_label)
+
         self.create_arrows()
         self.arrows_active = True
         self.reset_inactivity_timer()
+
         for btn_attr in ['up_btn', 'down_btn', 'left_btn', 'right_btn']:
             btn = getattr(self, btn_attr, None)
             if btn:
@@ -184,17 +213,27 @@ class TacPad(FloatLayout):
         btn = Button(
             background_normal=image_path,
             background_down=image_path,
-            background_color=(1, 1, 1, 1),
+            background_color=(1,1,1,1),  # white tint won't affect much
             size_hint=(None, None),
             size=(120, 120),
             pos_hint={"center_x": center_x, "center_y": center_y},
         )
-        with btn.canvas.after:
-            Color(1, 1, 1, 1)
-            border = Line(rounded_rectangle=(btn.x, btn.y, btn.width, btn.height, 10), width=5)
-        def update_border(instance, value):
-            border.rounded_rectangle = (btn.x, btn.y, btn.width, btn.height, 10)
+
+        # Draw thick white rounded border
+        with btn.canvas.before:
+            Color(1, 1, 1, 1)  # White
+            btn.border_line = Line(
+                rounded_rectangle=(btn.x, btn.y, btn.width, btn.height, 10),
+                width=4
+            )
+
+        # Update border on move/resize
+        def update_border(instance, *args):
+            instance.border_line.rounded_rectangle = (
+                instance.x, instance.y, instance.width, instance.height, 10
+            )
         btn.bind(pos=update_border, size=update_border)
+
         btn.bind(on_press=lambda instance: self.button_pressed(direction))
         return btn
 
@@ -224,10 +263,7 @@ class TacPad(FloatLayout):
 
     def record_input(self, direction):
         self.user_input_sequence.append(direction)
-        # Update the sequence display
-        self.sequence_label.text = " ".join(self.user_input_sequence)
-        if self.sequence_label.opacity == 0:
-            self.fade_widget(self.sequence_label, 1, duration=0.2)
+        self.add_arrow_to_display(direction)
 
         possible = False
         for code, data in self.stratagems.items():
@@ -236,30 +272,38 @@ class TacPad(FloatLayout):
                 if len(self.user_input_sequence) == len(code):
                     self.show_stratagem(data["name"], data["image"])
                 break
+
         if not possible:
-            self.user_input_sequence = []
-            self.fade_widget(self.sequence_label, 0, duration=0.2)
+            self.clear_sequence_display()
 
     def show_stratagem(self, strat_name, image_path):
-        if self.sequence_label.opacity > 0:
-            self.fade_widget(self.sequence_label, 0, duration=0.2)
-
+        self.clear_sequence_display()
         self.remove_arrows()
+
         container = FloatLayout(size_hint=(1, 1), opacity=0)
+
         icon = uixImage(
-            source=image_path, size_hint=(None, None), size=(150, 150),
-            pos_hint={"center_x": 0.5, "center_y": 0.65}, allow_stretch=True, keep_ratio=True
+            source=image_path,
+            size_hint=(None, None),
+            size=(150, 150),
+            pos_hint={"center_x": 0.5, "center_y": 0.65},
+            allow_stretch=True,
+            keep_ratio=True
         )
         container.add_widget(icon)
+
         label = Label(
             text=f"REQUESTING:\n{strat_name}",
-            font_size="60sp", font_name="HelldiversFont",
-            halign="center", valign="middle",
+            font_size="60sp",
+            font_name="HelldiversFont",
+            halign="center",
+            valign="middle",
             pos_hint={"center_x": 0.5, "center_y": 0.35},
             color=(1, 1, 1, 1)
         )
         label.bind(size=label.setter("text_size"))
         container.add_widget(label)
+
         self.strat_image = container
         self.add_widget(container)
         self.fade_widget(container, 1, duration=0.2)
@@ -283,9 +327,8 @@ class TacPad(FloatLayout):
         if self.strat_image:
             self.remove_widget(self.strat_image)
             self.strat_image = None
-        self.user_input_sequence = []
-        if self.sequence_label.opacity > 0:
-            self.fade_widget(self.sequence_label, 0, duration=0.2)
+
+        self.clear_sequence_display()
 
         if timeout:
             self.start_label.opacity = 0
@@ -306,14 +349,12 @@ class TacPad(FloatLayout):
 
     def show_input_screen(self):
         self.remove_arrows()
-        self.user_input_sequence = []
+        self.clear_sequence_display()
         self.start_label.opacity = 0
         if not self.start_label.parent:
             self.add_widget(self.start_label)
         self.fade_widget(self.start_label, 1, duration=0.2)
         self.arrows_active = False
-        if self.sequence_label.opacity > 0:
-            self.fade_widget(self.sequence_label, 0, duration=0.2)
 
 
 # ==========================================
@@ -325,13 +366,13 @@ class TacPadApp(App):
         return self.tacpad
 
     def on_stop(self):
-        # Cancel all clocks to prevent callbacks on exit
         if hasattr(self.tacpad, 'loading_event') and self.tacpad.loading_event:
             self.tacpad.loading_event.cancel()
         if self.tacpad.inactivity_event:
             self.tacpad.inactivity_event.cancel()
         if self.tacpad.strat_timeout_event:
             self.tacpad.strat_timeout_event.cancel()
+
 
 if __name__ == "__main__":
     TacPadApp().run()
