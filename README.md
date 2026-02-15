@@ -18,6 +18,8 @@ Made for cosplay, using a Raspbery PI and a touchscreen panel.
 -   Stratagem request display screen
 -   Audio feedback
 
+---
+
 ## Requirements
 
 -   Python 3.10+
@@ -28,6 +30,8 @@ Install dependencies:
 
     pip install kivy pygame
 
+---
+
 ## Running
 
 From the project root directory:
@@ -36,6 +40,7 @@ From the project root directory:
 
 ## Project Structure
 
+```
 Helldivers 2 TacPad/
 │
 ├── audio/
@@ -48,6 +53,9 @@ Helldivers 2 TacPad/
 ├── main.py                # Main Python script.
 ├── stratagems.py          # List with all the Stratagems and arrow combinations.
 └── README.md
+```
+
+---
 
 ## Disclaimer
 
