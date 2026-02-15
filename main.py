@@ -106,7 +106,7 @@ class TacPad(FloatLayout):
             spacing=8,
             size_hint=(None, None),
             height=60,
-            pos_hint={"x": 0.02, "top": 0.98},
+            pos_hint={"x": 0.02, "top": 0.95},
             opacity=0
         )
         self.add_widget(self.sequence_display)
